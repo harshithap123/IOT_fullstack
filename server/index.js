@@ -11,14 +11,25 @@ const jwt = require('jsonwebtoken');
 
 // App setup
 const app = express();
-const upload = multer();
+//const upload = multer();
+
+const upload = multer({
+    limits: { fileSize: 10 * 1024 * 1024 } // 10MB file limit
+});
+
 const PORT = process.env.PORT || 4000;
 
 // SSL Setup
+//const sslOptions = {
+  //key: fs.readFileSync('/home/mca/IOTproject/ssl/key.pem'),
+  //cert: fs.readFileSync('/home/mca/IOTproject/ssl/cert.pem')
+//};
+
 const sslOptions = {
-  key: fs.readFileSync('/home/mca/IOTproject/ssl/key.pem'),
-  cert: fs.readFileSync('/home/mca/IOTproject/ssl/cert.pem')
+  key: fs.readFileSync(path.join(__dirname, 'ssl/key.pem')),
+  cert: fs.readFileSync(path.join(__dirname, 'ssl/cert.pem'))
 };
+
 
 // Middleware
 app.use(cors());
@@ -69,15 +80,30 @@ app.get('/api/admin/user-stats', authenticateAdmin, async (req, res) => {
 
 // File Upload
 app.post('/api/upload', upload.single('file'), async (req, res) => {
-  const file = req.file;
-  const uploadedBy = req.body.user || 'anonymous';
-  if (!file) return res.status(400).send('No file uploaded');
-  if (!allowedTypes.includes(file.mimetype)) return res.status(400).json({ error: 'File type not allowed' });
-  await pool.query(
-    'INSERT INTO files (name, mimetype, data, uploaded_by) VALUES ($1, $2, $3, $4)',
-    [file.originalname, file.mimetype, file.buffer, uploadedBy]
-  );
-  res.json({ message: 'File uploaded successfully' });
+    const file = req.file;
+    const uploadedBy = req.body.user || 'anonymous';
+
+    if (!file) return res.status(400).send('No file uploaded');
+
+    if (!allowedTypes.includes(file.mimetype)) {
+        return res.status(400).json({ error: 'File type not allowed' });
+    }
+
+    // Check count limit (max 4 files per user)
+    const countResult = await pool.query(
+        'SELECT COUNT(*) FROM files WHERE uploaded_by = $1',
+        [uploadedBy]
+    );
+
+    if (parseInt(countResult.rows[0].count) >= 4) {
+        return res.status(403).json({ error: 'Upload limit reached (Max 4 files per user).' });
+    }
+
+    await pool.query(
+        'INSERT INTO files (name, mimetype, data, uploaded_by) VALUES ($1, $2, $3, $4)',
+        [file.originalname, file.mimetype, file.buffer, uploadedBy]
+    );
+    res.json({ message: 'File uploaded successfully' });
 });
 
 // List all files

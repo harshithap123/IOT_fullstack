@@ -122,6 +122,27 @@ app.get('/api/file/:id', async (req, res) => {
   res.send(file.data);
 });
 
+// server.js or routes.js
+//app.get('/api/file/:id', async (req, res) => {
+  //const fileId = req.params.id;
+
+  //try {
+    //const result = await pool.query('SELECT * FROM files WHERE id = $1', [fileId]);
+    //if (result.rows.length === 0) {
+      //return res.status(404).send('File not found');
+    //}
+
+    //const file = result.rows[0];
+
+    //res.setHeader('Content-Disposition', `attachment; filename="${file.name}"`);
+    //res.setHeader('Content-Type', file.mimetype);
+    //res.send(file.data);
+  //} catch (err) {
+    //res.status(500).send('Server error');
+  //}
+//});
+
+
 // Health Check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'API is working fine' });
